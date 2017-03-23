@@ -404,6 +404,8 @@ class Layer {
 
  private:
   DISABLE_COPY_AND_ASSIGN(Layer);
+
+  std::vector<std::vector<int>> bottomShapes;
 };  // class Layer
 
 // Forward and backward wrappers. You should implement the cpu and
@@ -413,7 +415,23 @@ template <typename Dtype>
 inline Dtype Layer<Dtype>::Forward(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
   Dtype loss = 0;
-  Reshape(bottom, top);
+  // Check if bottom's shapes equal previous shapes:
+  bool shapesEqual = true;
+  if (bottom.size() == bottomShapes.size()) {
+      for (int i = 0; i < bottom.size(); ++i)
+          if (bottom[i]->shape() != bottomShapes[i])
+              break;
+  }
+  else
+      shapesEqual = false;
+  // if shapes are not equal, reshape and store new shapes
+  // TODO: also store these new shapes when the layer is reshaped directly (instead of implicitly through Forward())
+  if (!shapesEqual) {
+      Reshape(bottom, top);
+      bottomShapes.clear();
+      for (auto & bot : bottom)
+          bottomShapes.push_back(bot->shape());
+  }
   switch (Caffe::mode()) {
   case Caffe::CPU:
     Forward_cpu(bottom, top);
